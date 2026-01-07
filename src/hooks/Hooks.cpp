@@ -12,6 +12,7 @@
 #include "../network/SocketWrapper.hpp"
 #include "../network/FakeIP.hpp"
 #include "../network/Socks5.hpp"
+#include "../network/HttpConnect.hpp"
 #include "../network/TrafficMonitor.hpp"
 #include "../injection/ProcessInjector.hpp"
 
@@ -96,13 +97,26 @@ int PerformProxyConnect(SOCKET s, const struct sockaddr* name, int namelen, bool
             return result;
         }
         
-        // 执行 SOCKS5 握手
+        // 执行代理协议握手
         if (config.proxy.type == "socks5") {
+            // SOCKS5 代理握手
             if (!Network::Socks5Client::Handshake(s, originalHost, originalPort)) {
                 Core::Logger::Error("SOCKS5 handshake failed");
                 WSASetLastError(WSAECONNREFUSED);
                 return SOCKET_ERROR;
             }
+        } else if (config.proxy.type == "http") {
+            // HTTP CONNECT 代理握手 (Clash 混合端口推荐)
+            if (!Network::HttpConnectClient::Handshake(s, originalHost, originalPort)) {
+                Core::Logger::Error("HTTP CONNECT handshake failed");
+                WSASetLastError(WSAECONNREFUSED);
+                return SOCKET_ERROR;
+            }
+        } else {
+            // 未知代理类型，记录警告但继续 (可能是直连模式)
+            Core::Logger::Error("Unknown proxy type: " + config.proxy.type);
+            WSASetLastError(WSAECONNREFUSED);
+            return SOCKET_ERROR;
         }
         
         return 0; // 成功

@@ -36,13 +36,17 @@ namespace Network {
             
             // 接收认证方法响应
             uint8_t authResponse[2];
-            if (recv(sock, (char*)authResponse, 2, 0) != 2) {
-                Core::Logger::Error("SOCKS5: Failed to receive auth response");
+            int recvResult = recv(sock, (char*)authResponse, 2, 0);
+            if (recvResult != 2) {
+                int wsaErr = WSAGetLastError();
+                Core::Logger::Error("SOCKS5: Failed to receive auth response, recv=" + 
+                    std::to_string(recvResult) + ", WSAError=" + std::to_string(wsaErr));
                 return false;
             }
             
             if (authResponse[0] != Socks5::VERSION || authResponse[1] != Socks5::AUTH_NONE) {
-                Core::Logger::Error("SOCKS5: Auth method not supported");
+                Core::Logger::Error("SOCKS5: Auth method not supported, version=" + 
+                    std::to_string(authResponse[0]) + ", method=" + std::to_string(authResponse[1]));
                 return false;
             }
             
