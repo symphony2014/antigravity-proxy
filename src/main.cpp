@@ -23,18 +23,20 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
     case DLL_PROCESS_ATTACH:
         DisableThreadLibraryCalls(hinstDLL);
         
-        // 初始化 version.dll 代理 (必须最先执行)
-        if (!VersionProxy::Initialize()) {
-            // 即使代理初始化失败，也继续运行以避免程序崩溃 (Fail-Safe)
-            Core::Logger::Error("VersionProxy 初始化失败");
-        }
+        // ============================================================================
+        // VersionProxy 采用懒加载模式 (Lazy Initialization)
+        // Initialize() 现在是空操作，真正的系统 version.dll 会在导出函数首次被调用时加载
+        // 这样可以避免在 DllMain 中调用 LoadLibraryW 导致的 Loader Lock 问题
+        // （可能触发 0xc0000022 STATUS_ACCESS_DENIED 错误）
+        // ============================================================================
+        VersionProxy::Initialize();  // 空操作，保持接口兼容
         
         Core::Logger::Info("Antigravity-Proxy DLL 已加载 (模拟 version.dll)");
         
         // 加载配置
         Core::Config::Instance().Load("config.json");
         
-        // 安装 Hooks
+        // 安装 Hooks（必须及时安装以确保网络流量被正确拦截）
         Hooks::Install();
         break;
         
